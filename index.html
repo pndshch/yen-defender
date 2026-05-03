@@ -204,7 +204,7 @@
   </div>
   <div class="hud-box" style="text-align:center; flex: 1.5 1 0;">
     <div class="hud-label">為替レート</div>
-    <div class="hud-value" id="hud-rate">¥150.00</div>
+    <div class="hud-value" id="hud-rate">1 USD = ¥150.00</div>
     <div id="hp-bar-outer"><div id="hp-bar-inner"></div></div>
   </div>
   <div class="hud-box" style="text-align:right;">
@@ -766,13 +766,13 @@ function endGame() {
   document.getElementById('final-score-value').textContent = score.toLocaleString();
   const finalRate = BASE_RATE + (hp / MAX_HP - 1) * 20;
   document.getElementById('final-rate').textContent =
-    `最終レート: ¥${finalRate.toFixed(2)} / USD`;
+    `最終レート: 1 USD = ¥${finalRate.toFixed(2)}`;
 }
 
 function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   const rate = BASE_RATE + (hp / MAX_HP - 1) * 20;
-  rateEl.textContent = `¥${rate.toFixed(2)}`;
+  rateEl.textContent = `1 USD = ¥${rate.toFixed(2)}`;
   hpBar.style.width = `${(hp / MAX_HP) * 100}%`;
 
   if (hp / MAX_HP < 0.3) {
