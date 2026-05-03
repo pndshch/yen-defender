@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>円を守れ！ - Protect the Yen!</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    overflow: hidden;
+    background: #0a0e1a;
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    color: #fff;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  canvas { display: block; }
+
+  /* ---- HUD ---- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: none;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 10px;
+    pointer-events: none;
+    z-index: 10;
+    gap: 6px;
+  }
+  .hud-box {
+    background: rgba(5, 12, 30, 0.75);
+    border: 1px solid rgba(200, 170, 50, 0.35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    backdrop-filter: blur(6px);
+    min-width: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+  }
+  .hud-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #8a9bc0;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hud-value {
+    font-size: clamp(18px, 4vw, 26px);
+    font-weight: 700;
+    color: #f0d060;
+    white-space: nowrap;
+  }
+  #hp-bar-outer {
+    width: 100%;
+    height: 10px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 5px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  #hp-bar-inner {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff4444, #f0d060, #44cc66);
+    border-radius: 5px;
+    transition: width 0.3s;
+  }
+  #combo-display {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    font-weight: 900;
+    color: #f0d060;
+    text-shadow: 0 0 20px rgba(240,208,96,0.6);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 15;
+    transition: opacity 0.2s;
+  }
+
+  /* ---- Title Screen ---- */
+  #title-screen {
+    position: fixed; inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    background: radial-gradient(ellipse at center, rgba(20,30,60,0.92) 0%, rgba(5,8,20,0.97) 100%);
+  }
+  #title-screen h1 {
+    font-size: clamp(42px, 8vw, 80px);
+    font-weight: 900;
+    color: #f0d060;
+    text-shadow: 0 0 40px rgba(240,208,96,0.4), 0 4px 8px rgba(0,0,0,0.6);
+    margin-bottom: 8px;
+    letter-spacing: 4px;
+  }
+  #title-screen .subtitle {
+    font-size: clamp(14px, 3vw, 22px);
+    color: #8a9bc0;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+  }
+  #start-btn, #replay-btn {
+    padding: 16px 56px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    border: 2px solid #f0d060;
+    background: rgba(240,208,96,0.1);
+    color: #f0d060;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  #start-btn:hover, #replay-btn:hover {
+    background: rgba(240,208,96,0.25);
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(240,208,96,0.3);
+  }
+  .instructions {
+    margin-top: 30px;
+    font-size: 13px;
+    color: #6678a0;
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  /* ---- Game Over Screen ---- */
+  #gameover-screen {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 20;
+    background: radial-gradient(ellipse at center, rgba(40,10,10,0.92) 0%, rgba(10,5,5,0.97) 100%);
+  }
+  #gameover-screen h1 {
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 900;
+    color: #ff5555;
+    text-shadow: 0 0 30px rgba(255,80,80,0.4);
+    margin-bottom: 12px;
+  }
+  #gameover-screen .final-score {
+    font-size: clamp(48px, 10vw, 90px);
+    font-weight: 900;
+    color: #f0d060;
+    text-shadow: 0 0 40px rgba(240,208,96,0.5);
+    margin-bottom: 8px;
+  }
+  #gameover-screen .final-label {
+    font-size: 16px;
+    color: #8a9bc0;
+    margin-bottom: 36px;
+    letter-spacing: 2px;
+  }
+  #final-rate {
+    font-size: 18px;
+    color: #cc8844;
+    margin-bottom: 8px;
+  }
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+
+<!-- Title Screen -->
+<div id="title-screen">
+  <h1>円を守れ！</h1>
+  <p class="subtitle">Protect the Yen!</p>
+  <button id="start-btn">START</button>
+  <div class="instructions">
+    ← → キー / A D で移動<br>
+    タッチ: 画面の左右をタップ<br>
+    外貨を弾いて円を守ろう！
+  </div>
+</div>
+
+<!-- Game Over Screen -->
+<div id="gameover-screen">
+  <h1>円安暴落！</h1>
+  <p class="final-label">FINAL SCORE</p>
+  <p class="final-score" id="final-score-value">0</p>
+  <p id="final-rate"></p>
+  <button id="replay-btn">REPLAY</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-box">
+    <div class="hud-label">Score</div>
+    <div class="hud-value" id="hud-score">0</div>
+  </div>
+  <div class="hud-box" style="text-align:center; flex: 1.5 1 0;">
+    <div class="hud-label">為替レート</div>
+    <div class="hud-value" id="hud-rate">¥150.00</div>
+    <div id="hp-bar-outer"><div id="hp-bar-inner"></div></div>
+  </div>
+  <div class="hud-box" style="text-align:right;">
+    <div class="hud-label">Time</div>
+    <div class="hud-value" id="hud-time">0:00</div>
+  </div>
+</div>
+
+<!-- Combo display -->
+<div id="combo-display"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+
+// ===================== GLOBALS =====================
+const FIELD_WIDTH = 14;
+const FIELD_DEPTH = 20;
+const PADDLE_Y = 0.6;
+const PADDLE_Z = 7;
+const YEN_Z = 9;
+const SPAWN_Z = -12;
+const MAX_HP = 100;
+const BASE_RATE = 150;
+
+let scene, camera, renderer, clock;
+let paddle, yenCoin, yenGroup;
+let score = 0, hp = MAX_HP, combo = 0, maxCombo = 0, elapsed = 0;
+let gameActive = false, gameOver = false;
+let enemies = [];
+let particles = [];
+let paddleTargetX = 0;
+let moveLeft = false, moveRight = false;
+let touchSide = 0; // -1 left, 0 none, 1 right
+let difficulty = 1;
+let spawnTimer = 0;
+let shakeTimer = 0, shakeIntensity = 0;
+let font = null;
+let gridFloor;
+let backgroundStars = [];
+
+// Currency types
+const CURRENCY_TYPES = [
+  { symbol: '$', color: 0x44bb44, name: 'USD', damage: 8, speed: 1.0, scale: 1.0 },
+  { symbol: '€', color: 0x4488dd, name: 'EUR', damage: 10, speed: 0.85, scale: 1.1 },
+  { symbol: '£', color: 0xdd6644, name: 'GBP', damage: 12, speed: 0.75, scale: 1.2 },
+  { symbol: '₣', color: 0xcc44cc, name: 'CHF', damage: 15, speed: 0.65, scale: 1.3 },
+  { symbol: '元', color: 0xdd4444, name: 'CNY', damage: 20, speed: 0.55, scale: 1.4 },
+];
+
+// DOM refs
+const hudEl = document.getElementById('hud');
+const scoreEl = document.getElementById('hud-score');
+const rateEl = document.getElementById('hud-rate');
+const hpBar = document.getElementById('hp-bar-inner');
+const timeEl = document.getElementById('hud-time');
+const titleScreen = document.getElementById('title-screen');
+const gameoverScreen = document.getElementById('gameover-screen');
+const comboDisplay = document.getElementById('combo-display');
+
+// ===================== INIT =====================
+function init() {
+  clock = new THREE.Clock();
+
+  // Scene
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x060c1e);
+  scene.fog = new THREE.FogExp2(0x060c1e, 0.025);
+
+  // Camera
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 14, 16);
+  camera.lookAt(0, 0, 0);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    preserveDrawingBuffer: true,
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.body.prepend(renderer.domElement);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x334466, 0.6);
+  scene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+  dirLight.position.set(5, 15, 8);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(1024, 1024);
+  dirLight.shadow.camera.near = 1;
+  dirLight.shadow.camera.far = 40;
+  dirLight.shadow.camera.left = -15;
+  dirLight.shadow.camera.right = 15;
+  dirLight.shadow.camera.top = 15;
+  dirLight.shadow.camera.bottom = -15;
+  dirLight.shadow.bias = -0.002;
+  scene.add(dirLight);
+
+  const rimLight = new THREE.DirectionalLight(0x4488ff, 0.5);
+  rimLight.position.set(-8, 5, -10);
+  scene.add(rimLight);
+
+  const pointLight = new THREE.PointLight(0xf0d060, 0.8, 20);
+  pointLight.position.set(0, 3, YEN_Z);
+  scene.add(pointLight);
+
+  // Floor
+  createFloor();
+
+  // Side walls (visual boundaries)
+  createWalls();
+
+  // Background stars
+  createStars();
+
+  // Paddle
+  createPaddle();
+
+  // Yen coin
+  createYenCoin();
+
+  // Events
+  window.addEventListener('resize', onResize);
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('touchstart', onTouchStart, { passive: false });
+  window.addEventListener('touchend', onTouchEnd, { passive: false });
+  window.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+  document.getElementById('start-btn').addEventListener('click', startGame);
+  document.getElementById('replay-btn').addEventListener('click', startGame);
+
+  // Pre-render
+  renderer.render(scene, camera);
+
+  // Start loop
+  animate();
+}
+
+// ===================== SCENE CREATION =====================
+function createFloor() {
+  // Main floor
+  const floorGeo = new THREE.PlaneGeometry(FIELD_WIDTH * 2, FIELD_DEPTH * 2, 40, 40);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x0a1228,
+    roughness: 0.8,
+    metalness: 0.2,
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.01;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Grid lines
+  const gridGeo = new THREE.PlaneGeometry(FIELD_WIDTH * 2, FIELD_DEPTH * 2, 28, 40);
+  const gridMat = new THREE.MeshBasicMaterial({
+    color: 0x1a2a4a,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.3,
+  });
+  gridFloor = new THREE.Mesh(gridGeo, gridMat);
+  gridFloor.rotation.x = -Math.PI / 2;
+  gridFloor.position.y = 0.01;
+  scene.add(gridFloor);
+
+  // Glowing center line
+  const lineGeo = new THREE.PlaneGeometry(FIELD_WIDTH, 0.05);
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xf0d060, transparent: true, opacity: 0.3 });
+  const centerLine = new THREE.Mesh(lineGeo, lineMat);
+  centerLine.rotation.x = -Math.PI / 2;
+  centerLine.position.y = 0.02;
+  centerLine.position.z = PADDLE_Z;
+  scene.add(centerLine);
+}
+
+function createWalls() {
+  const wallGeo = new THREE.BoxGeometry(0.3, 2, FIELD_DEPTH * 1.5);
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x1a2848,
+    roughness: 0.6,
+    metalness: 0.4,
+    transparent: true,
+    opacity: 0.5,
+  });
+  const leftWall = new THREE.Mesh(wallGeo, wallMat);
+  leftWall.position.set(-FIELD_WIDTH / 2 - 0.15, 1, 0);
+  leftWall.receiveShadow = true;
+  scene.add(leftWall);
+
+  const rightWall = new THREE.Mesh(wallGeo, wallMat);
+  rightWall.position.set(FIELD_WIDTH / 2 + 0.15, 1, 0);
+  rightWall.receiveShadow = true;
+  scene.add(rightWall);
+}
+
+function createStars() {
+  const starGeo = new THREE.BufferGeometry();
+  const starCount = 300;
+  const positions = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 60;
+    positions[i * 3 + 1] = Math.random() * 30 + 5;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 10;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const starMat = new THREE.PointsMaterial({ color: 0x6688cc, size: 0.15, transparent: true, opacity: 0.6 });
+  const stars = new THREE.Points(starGeo, starMat);
+  scene.add(stars);
+}
+
+function createPaddle() {
+  const group = new THREE.Group();
+
+  // Main paddle body
+  const bodyGeo = new THREE.BoxGeometry(4, 0.4, 0.8, 4, 1, 1);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0x4488cc,
+    roughness: 0.2,
+    metalness: 0.8,
+    emissive: 0x112244,
+    emissiveIntensity: 0.3,
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  // Top glow strip
+  const stripGeo = new THREE.BoxGeometry(3.6, 0.08, 0.85);
+  const stripMat = new THREE.MeshBasicMaterial({
+    color: 0x66ccff,
+    transparent: true,
+    opacity: 0.6,
+  });
+  const strip = new THREE.Mesh(stripGeo, stripMat);
+  strip.position.y = 0.22;
+  group.add(strip);
+
+  // Side caps
+  for (let side of [-1, 1]) {
+    const capGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.45, 8);
+    const capMat = new THREE.MeshStandardMaterial({
+      color: 0x66aaee,
+      roughness: 0.15,
+      metalness: 0.9,
+      emissive: 0x224466,
+    });
+    const cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.set(side * 2, 0, 0);
+    cap.rotation.z = Math.PI / 2;
+    cap.castShadow = true;
+    group.add(cap);
+  }
+
+  group.position.set(0, PADDLE_Y, PADDLE_Z);
+  scene.add(group);
+  paddle = group;
+}
+
+function createYenCoin() {
+  yenGroup = new THREE.Group();
+
+  // Coin body
+  const coinGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.3, 32);
+  const coinMat = new THREE.MeshStandardMaterial({
+    color: 0xdaa520,
+    roughness: 0.25,
+    metalness: 0.9,
+    emissive: 0x442200,
+    emissiveIntensity: 0.2,
+  });
+  yenCoin = new THREE.Mesh(coinGeo, coinMat);
+  yenCoin.rotation.x = Math.PI / 2;
+  yenCoin.castShadow = true;
+  yenCoin.receiveShadow = true;
+  yenGroup.add(yenCoin);
+
+  // Inner ring
+  const ringGeo = new THREE.TorusGeometry(0.85, 0.06, 8, 32);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: 0xffdd44,
+    roughness: 0.15,
+    metalness: 1.0,
+    emissive: 0x664400,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.z = 0.16;
+  yenGroup.add(ring);
+
+  // Yen symbol using simple geometry (two V-shapes and two horizontal lines)
+  const yenMat = new THREE.MeshStandardMaterial({
+    color: 0xfff0a0,
+    roughness: 0.3,
+    metalness: 0.7,
+    emissive: 0x886600,
+    emissiveIntensity: 0.5,
+  });
+
+  // Create yen symbol from basic shapes
+  // The Y part - left stroke
+  const strokeGeo = new THREE.BoxGeometry(0.08, 0.55, 0.05);
+  const leftStroke = new THREE.Mesh(strokeGeo, yenMat);
+  leftStroke.position.set(-0.22, 0.18, 0.17);
+  leftStroke.rotation.z = -0.45;
+  yenGroup.add(leftStroke);
+
+  // Right stroke
+  const rightStroke = new THREE.Mesh(strokeGeo, yenMat);
+  rightStroke.position.set(0.22, 0.18, 0.17);
+  rightStroke.rotation.z = 0.45;
+  yenGroup.add(rightStroke);
+
+  // Vertical stem
+  const stemGeo = new THREE.BoxGeometry(0.08, 0.55, 0.05);
+  const stem = new THREE.Mesh(stemGeo, yenMat);
+  stem.position.set(0, -0.2, 0.17);
+  yenGroup.add(stem);
+
+  // Horizontal bars
+  const barGeo = new THREE.BoxGeometry(0.6, 0.06, 0.05);
+  const bar1 = new THREE.Mesh(barGeo, yenMat);
+  bar1.position.set(0, -0.02, 0.17);
+  yenGroup.add(bar1);
+
+  const bar2 = new THREE.Mesh(barGeo, yenMat);
+  bar2.position.set(0, -0.18, 0.17);
+  yenGroup.add(bar2);
+
+  // Glow ring
+  const glowGeo = new THREE.RingGeometry(1.3, 1.6, 32);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xf0d060,
+    transparent: true,
+    opacity: 0.15,
+    side: THREE.DoubleSide,
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.position.z = -0.05;
+  yenGroup.add(glow);
+
+  yenGroup.position.set(0, 1.5, YEN_Z);
+  scene.add(yenGroup);
+}
+
+// ===================== ENEMY CREATION =====================
+function spawnEnemy() {
+  // Pick currency type based on difficulty
+  let maxIndex = Math.min(Math.floor(difficulty), CURRENCY_TYPES.length);
+  let typeIndex = Math.floor(Math.random() * maxIndex);
+  let type = CURRENCY_TYPES[typeIndex];
+
+  const group = new THREE.Group();
+
+  // Body: use different shapes per currency
+  let bodyMesh;
+  const mat = new THREE.MeshStandardMaterial({
+    color: type.color,
+    roughness: 0.3,
+    metalness: 0.7,
+    emissive: new THREE.Color(type.color).multiplyScalar(0.2),
+  });
+
+  if (typeIndex === 0) {
+    // Dollar - sphere
+    bodyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5 * type.scale, 12, 8), mat);
+  } else if (typeIndex === 1) {
+    // Euro - torus
+    bodyMesh = new THREE.Mesh(new THREE.TorusGeometry(0.35 * type.scale, 0.15 * type.scale, 8, 16), mat);
+  } else if (typeIndex === 2) {
+    // Pound - octahedron
+    bodyMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.5 * type.scale, 0), mat);
+  } else if (typeIndex === 3) {
+    // Franc - dodecahedron
+    bodyMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45 * type.scale, 0), mat);
+  } else {
+    // Yuan - icosahedron
+    bodyMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5 * type.scale, 0), mat);
+  }
+
+  bodyMesh.castShadow = true;
+  group.add(bodyMesh);
+
+  // Glow sphere around enemy
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: type.color,
+    transparent: true,
+    opacity: 0.15,
+  });
+  const glowMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7 * type.scale, 8, 6),
+    glowMat
+  );
+  group.add(glowMesh);
+
+  // Symbol label using a sprite
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 80px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(type.symbol, 64, 64);
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.9 });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(0.8, 0.8, 1);
+  sprite.position.y = 0.8 * type.scale;
+  group.add(sprite);
+
+  // Position
+  const x = (Math.random() - 0.5) * (FIELD_WIDTH - 2);
+  group.position.set(x, 0.6, SPAWN_Z);
+
+  scene.add(group);
+
+  const baseSpeed = (2.5 + Math.random() * 1.5) * type.speed * (0.8 + difficulty * 0.15);
+  enemies.push({
+    group,
+    type,
+    speed: baseSpeed,
+    rotSpeed: (Math.random() - 0.5) * 4,
+    wobble: Math.random() * Math.PI * 2,
+    wobbleSpeed: 1 + Math.random() * 2,
+    wobbleAmp: 0.3 + Math.random() * 0.5,
+    alive: true,
+  });
+}
+
+// ===================== PARTICLE SYSTEM =====================
+function spawnDeflectParticles(position, color) {
+  const count = 15;
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+    const mat = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 1,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(position);
+    scene.add(mesh);
+
+    const angle = Math.random() * Math.PI * 2;
+    const upSpeed = 2 + Math.random() * 4;
+    const outSpeed = 1 + Math.random() * 3;
+
+    particles.push({
+      mesh,
+      vx: Math.cos(angle) * outSpeed,
+      vy: upSpeed,
+      vz: Math.sin(angle) * outSpeed - 2,
+      life: 1.0,
+      decay: 1.5 + Math.random() * 1.5,
+    });
+  }
+}
+
+function spawnHitParticles(position) {
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xff4444,
+      transparent: true,
+      opacity: 1,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(position);
+    scene.add(mesh);
+
+    const angle = Math.random() * Math.PI * 2;
+    particles.push({
+      mesh,
+      vx: Math.cos(angle) * 2,
+      vy: 1 + Math.random() * 2,
+      vz: Math.sin(angle) * 2,
+      life: 1.0,
+      decay: 2.0 + Math.random(),
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.vy -= 9.8 * dt;
+    p.life -= p.decay * dt;
+    p.mesh.material.opacity = Math.max(0, p.life);
+    p.mesh.rotation.x += dt * 5;
+    p.mesh.rotation.y += dt * 3;
+
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      particles.splice(i, 1);
+    }
+  }
+}
+
+// ===================== GAME LOGIC =====================
+function startGame() {
+  // Clean up
+  enemies.forEach(e => { scene.remove(e.group); });
+  enemies = [];
+  particles.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); });
+  particles = [];
+
+  score = 0;
+  hp = MAX_HP;
+  combo = 0;
+  maxCombo = 0;
+  elapsed = 0;
+  difficulty = 1;
+  spawnTimer = 0;
+  gameActive = true;
+  gameOver = false;
+  paddleTargetX = 0;
+  paddle.position.x = 0;
+
+  titleScreen.style.display = 'none';
+  gameoverScreen.style.display = 'none';
+  hudEl.style.display = 'flex';
+
+  updateHUD();
+  clock.getDelta(); // reset delta
+}
+
+function endGame() {
+  gameActive = false;
+  gameOver = true;
+  hudEl.style.display = 'none';
+  gameoverScreen.style.display = 'flex';
+  document.getElementById('final-score-value').textContent = score.toLocaleString();
+  const finalRate = BASE_RATE + (hp / MAX_HP - 1) * 20;
+  document.getElementById('final-rate').textContent =
+    `最終レート: ¥${finalRate.toFixed(2)} / USD`;
+}
+
+function updateHUD() {
+  scoreEl.textContent = score.toLocaleString();
+  const rate = BASE_RATE + (hp / MAX_HP - 1) * 20;
+  rateEl.textContent = `¥${rate.toFixed(2)}`;
+  hpBar.style.width = `${(hp / MAX_HP) * 100}%`;
+
+  if (hp / MAX_HP < 0.3) {
+    rateEl.style.color = '#ff5555';
+  } else if (hp / MAX_HP < 0.6) {
+    rateEl.style.color = '#ffaa44';
+  } else {
+    rateEl.style.color = '#f0d060';
+  }
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = Math.floor(elapsed % 60);
+  timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function showCombo(text) {
+  comboDisplay.textContent = text;
+  comboDisplay.style.opacity = '1';
+  comboDisplay.style.transform = 'translate(-50%, -50%) scale(1.2)';
+  setTimeout(() => {
+    comboDisplay.style.opacity = '0';
+    comboDisplay.style.transform = 'translate(-50%, -50%) scale(0.8)';
+  }, 800);
+}
+
+function checkCollisions() {
+  const paddleBB = new THREE.Box3().setFromObject(paddle);
+  // Expand paddle hitbox slightly for better feel
+  paddleBB.expandByVector(new THREE.Vector3(0.3, 0.4, 0.4));
+
+  const yenPos = yenGroup.position.clone();
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+
+    const ePos = e.group.position;
+    const eBox = new THREE.Box3().setFromCenterAndSize(
+      ePos,
+      new THREE.Vector3(1.0 * e.type.scale, 1.0 * e.type.scale, 1.0 * e.type.scale)
+    );
+
+    // Check paddle collision
+    if (paddleBB.intersectsBox(eBox)) {
+      e.alive = false;
+
+      // Score
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      const comboMultiplier = Math.min(combo, 10);
+      const points = 10 * comboMultiplier * Math.ceil(difficulty);
+      score += points;
+
+      if (combo >= 5 && combo % 5 === 0) {
+        showCombo(`${combo} COMBO! x${comboMultiplier}`);
+      }
+
+      // Healing on deflect
+      hp = Math.min(MAX_HP, hp + 1);
+
+      // Particles
+      spawnDeflectParticles(ePos.clone(), e.type.color);
+
+      // Remove
+      scene.remove(e.group);
+      enemies.splice(i, 1);
+      continue;
+    }
+
+    // Check if past the yen line
+    if (ePos.z > YEN_Z + 1) {
+      e.alive = false;
+
+      // Damage
+      hp -= e.type.damage;
+      combo = 0;
+
+      // Camera shake
+      shakeTimer = 0.3;
+      shakeIntensity = 0.15 * (e.type.damage / 10);
+
+      // Hit particles
+      spawnHitParticles(ePos.clone());
+
+      // Flash yen red
+      yenCoin.material.emissive.set(0xff0000);
+      yenCoin.material.emissiveIntensity = 1.0;
+      setTimeout(() => {
+        yenCoin.material.emissive.set(0x442200);
+        yenCoin.material.emissiveIntensity = 0.2;
+      }, 200);
+
+      scene.remove(e.group);
+      enemies.splice(i, 1);
+
+      if (hp <= 0) {
+        hp = 0;
+        endGame();
+        return;
+      }
+    }
+  }
+}
+
+// ===================== UPDATE =====================
+function update(dt) {
+  if (!gameActive) {
+    // Idle animations
+    if (yenGroup) {
+      yenGroup.rotation.y += dt * 0.5;
+      yenGroup.position.y = 1.5 + Math.sin(Date.now() * 0.002) * 0.2;
+    }
+    return;
+  }
+
+  elapsed += dt;
+  difficulty = 1 + elapsed / 30; // increases over time
+
+  // Spawn enemies
+  const spawnInterval = Math.max(0.4, 1.8 - difficulty * 0.12);
+  spawnTimer += dt;
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer = 0;
+    spawnEnemy();
+    // Chance of double spawn at higher difficulty
+    if (difficulty > 2 && Math.random() < 0.3) spawnEnemy();
+    if (difficulty > 4 && Math.random() < 0.2) spawnEnemy();
+  }
+
+  // Move paddle
+  const paddleSpeed = 14;
+  let moveDir = 0;
+  if (moveLeft || touchSide === -1) moveDir -= 1;
+  if (moveRight || touchSide === 1) moveDir += 1;
+
+  paddleTargetX += moveDir * paddleSpeed * dt;
+  const halfLimit = FIELD_WIDTH / 2 - 2.2;
+  paddleTargetX = Math.max(-halfLimit, Math.min(halfLimit, paddleTargetX));
+
+  paddle.position.x += (paddleTargetX - paddle.position.x) * 12 * dt;
+
+  // Paddle tilt based on movement
+  paddle.rotation.z = -moveDir * 0.15;
+
+  // Move enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    e.group.position.z += e.speed * dt;
+    e.wobble += e.wobbleSpeed * dt;
+    e.group.position.x += Math.sin(e.wobble) * e.wobbleAmp * dt;
+    e.group.position.y = 0.6 + Math.sin(e.wobble * 1.5) * 0.15;
+
+    // Clamp X
+    e.group.position.x = Math.max(-FIELD_WIDTH / 2 + 0.5, Math.min(FIELD_WIDTH / 2 - 0.5, e.group.position.x));
+
+    // Rotate
+    e.group.children[0].rotation.x += e.rotSpeed * dt;
+    e.group.children[0].rotation.y += e.rotSpeed * 0.7 * dt;
+  }
+
+  // Yen coin animation
+  yenGroup.rotation.y += dt * 1.2;
+  yenGroup.position.y = 1.5 + Math.sin(elapsed * 2) * 0.1;
+
+  // Yen coin scale pulse with HP
+  const hpRatio = hp / MAX_HP;
+  const pulse = 1.0 + (1 - hpRatio) * Math.sin(elapsed * 8) * 0.05;
+  yenGroup.scale.setScalar(pulse);
+
+  // Camera shake
+  if (shakeTimer > 0) {
+    shakeTimer -= dt;
+    camera.position.x = Math.sin(shakeTimer * 50) * shakeIntensity;
+    camera.position.y = 14 + Math.cos(shakeTimer * 60) * shakeIntensity * 0.5;
+  } else {
+    camera.position.x = 0;
+    camera.position.y = 14;
+  }
+
+  // Grid scroll
+  if (gridFloor) {
+    gridFloor.position.z = (elapsed * 0.5) % 1.0;
+  }
+
+  // Check collisions
+  checkCollisions();
+
+  // Update particles
+  updateParticles(dt);
+
+  // Update HUD
+  updateHUD();
+}
+
+// ===================== RENDER LOOP =====================
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  update(dt);
+  renderer.render(scene, camera);
+}
+
+// ===================== EVENTS =====================
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onKeyDown(e) {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLeft = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveRight = true;
+  if (e.key === 'Enter' && !gameActive && !gameOver) startGame();
+  if (e.key === 'Enter' && gameOver) startGame();
+}
+
+function onKeyUp(e) {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLeft = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveRight = false;
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  if (!gameActive && !gameOver) { startGame(); return; }
+  if (gameOver) { startGame(); return; }
+  const touch = e.touches[0];
+  touchSide = touch.clientX < window.innerWidth / 2 ? -1 : 1;
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  touchSide = 0;
+}
+
+// ===================== START =====================
+init();
+</script>
+</body>
+</html>
